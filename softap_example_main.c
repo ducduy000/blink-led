@@ -37,6 +37,7 @@
 #include <lwip/sys.h>
 #include <lwip/api.h>
 #include <lwip/netdb.h>
+#include "driver/ledc.h"
 /* The examples use WiFi configuration that you can set via project configuration menu.
 
    If you'd rather not, just change the below entries to strings with
@@ -50,10 +51,95 @@
 #define LED_PIN1 13
 #define LED_PIN2 12
 #define LED_PIN3 14
-
+#define MIN(x,y) ((x) <(y) ? (x) : (y))
+//static ledc_channel_config_t ledc_channel;
 //char on_resp[] = "<!DOCTYPE html><html><head><style type=\"text/css\">html {  font-family: Arial;  display: inline-block;  margin: 0px auto;  text-align: center;}h1{  color: #070812;  padding: 2vh;}.button {  display: inline-block;  background-color: #b30000; //red color  border: none;  border-radius: 4px;  color: white;  padding: 16px 40px;  text-decoration: none;  font-size: 30px;  margin: 2px;  cursor: pointer;}.button2 {  background-color: #364cf4; //blue color}.content {   padding: 50px;}.card-grid {  max-width: 800px;  margin: 0 auto;  display: grid;  grid-gap: 2rem;  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));}.card {  background-color: white;  box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5);}.card-title {  font-size: 1.2rem;  font-weight: bold;  color: #034078}</style>  <title>ESP32 WEB SERVER</title>  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">  <link rel=\"icon\" href=\"data:,\">  <link rel=\"stylesheet\" href=\"https://use.fontawesome.com/releases/v5.7.2/css/all.css\"    integrity=\"sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr\" crossorigin=\"anonymous\">  <link rel=\"stylesheet\" type=\"text/css\" ></head><body>  <h2>ESP32 WEB SERVER</h2>  <div class=\"content\">    <div class=\"card-grid\">      <div class=\"card\">        <p><i class=\"fas fa-lightbulb fa-2x\" style=\"color:#c81919;\"></i>     <strong>GPIO2</strong></p>        <p>GPIO state: <strong> ON</strong></p>        <p>          <a href=\"/led2on\"><button class=\"button\">ON</button></a>          <a href=\"/led2off\"><button class=\"button button2\">OFF</button></a>        </p>      </div>    </div>  </div></body></html>";
 
 //char off_resp[] = "<!DOCTYPE html><html><head><style type=\"text/css\">html {  font-family: Arial;  display: inline-block;  margin: 0px auto;  text-align: center;}h1{  color: #070812;  padding: 2vh;}.button {  display: inline-block;  background-color: #b30000; //red color  border: none;  border-radius: 4px;  color: white;  padding: 16px 40px;  text-decoration: none;  font-size: 30px;  margin: 2px;  cursor: pointer;}.button2 {  background-color: #364cf4; //blue color}.content {   padding: 50px;}.card-grid {  max-width: 800px;  margin: 0 auto;  display: grid;  grid-gap: 2rem;  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));}.card {  background-color: white;  box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5);}.card-title {  font-size: 1.2rem;  font-weight: bold;  color: #034078}</style>  <title>ESP32 WEB SERVER</title>  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">  <link rel=\"icon\" href=\"data:,\">  <link rel=\"stylesheet\" href=\"https://use.fontawesome.com/releases/v5.7.2/css/all.css\"    integrity=\"sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr\" crossorigin=\"anonymous\">  <link rel=\"stylesheet\" type=\"text/css\"></head><body>  <h2>ESP32 WEB SERVER</h2>  <div class=\"content\">    <div class=\"card-grid\">      <div class=\"card\">        <p><i class=\"fas fa-lightbulb fa-2x\" style=\"color:#c81919;\"></i>     <strong>GPIO2</strong></p>        <p>GPIO state: <strong> OFF</strong></p>        <p>          <a href=\"/led2on\"><button class=\"button\">ON</button></a>          <a href=\"/led2off\"><button class=\"button button2\">OFF</button></a>        </p>      </div>    </div>  </div></body></html>";
+#define LEDC_TIMER LEDC_TIMER_0
+#define LEDC_MODE LEDC_HIGH_SPEED_MODE
+#define LEDC_CHANNEL LEDC_CHANNEL_0
+#define LEDC_DUTY_RES LEDC_TIMER_10_BIT 
+#define LEDC_MAX_DUTY ((1 << LEDC_DUTY_RES) - 1)
+#define LED1_CHANNEL LEDC_CHANNEL_0
+#define LED2_CHANNEL LEDC_CHANNEL_1
+#define LED3_CHANNEL LEDC_CHANNEL_2
+static const char *TAG = "espressif"; // TAG for debug
+void pwm_init() {
+    ledc_timer_config_t ledc_timer = {
+        .speed_mode = LEDC_MODE,
+        .duty_resolution = LEDC_DUTY_RES,
+        .timer_num = LEDC_TIMER,
+        .freq_hz = 5000,
+        .clk_cfg = LEDC_AUTO_CLK
+    };
+    ledc_timer_config(&ledc_timer);
+
+    ledc_channel_config_t ledc_channel1 = {
+        .gpio_num = LED_PIN1,
+        .speed_mode = LEDC_MODE,
+        .channel = LED1_CHANNEL,
+        .timer_sel = LEDC_TIMER,
+        .duty = 0,
+        .hpoint = 0
+    };
+    ledc_channel_config(&ledc_channel1);
+    ledc_channel_config_t ledc_channel2 = {
+        .gpio_num = LED_PIN2,
+        .speed_mode = LEDC_MODE,
+        .channel = LED2_CHANNEL,
+        .timer_sel = LEDC_TIMER,
+        .duty = 0,
+        .hpoint = 0
+    };
+    ledc_channel_config(&ledc_channel2);
+    ledc_channel_config_t ledc_channel3 = {
+        .gpio_num = LED_PIN3,
+        .speed_mode = LEDC_MODE,
+        .channel = LED3_CHANNEL,
+        .timer_sel = LEDC_TIMER,
+        .duty = 0,
+        .hpoint = 0
+    };
+    ledc_channel_config(&ledc_channel3);
+}
+
+void set_pwm_duty(ledc_channel_t channel, int duty) {
+    if (duty > LEDC_MAX_DUTY) duty = LEDC_MAX_DUTY;
+    ledc_set_duty(LEDC_MODE, channel, duty);
+    ledc_update_duty(LEDC_MODE, channel);
+}
+
+esp_err_t pwm_handler(httpd_req_t *req) {
+    char buf[100] = {0};
+    char value[32] = {0};
+
+    int ret = httpd_req_get_url_query_str(req, buf, sizeof(buf));
+    if (ret == ESP_OK) {
+        ESP_LOGI(TAG, "Received query string: %s", buf);
+
+        // Lấy giá trị "value" từ query string
+        if (httpd_query_key_value(buf, "value", value, sizeof(value)) == ESP_OK) {
+            int duty = atoi(value);
+            if (duty >= 0 && duty <= 255) {  
+                duty = duty * LEDC_MAX_DUTY / 255;
+                ESP_LOGI("PWM", "Setting PWM duty: %d", duty);
+                set_pwm_duty(LED1_CHANNEL, duty);
+                set_pwm_duty(LED2_CHANNEL, duty);
+                set_pwm_duty(LED3_CHANNEL, duty);
+                httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
+                return ESP_OK;
+            }
+        }
+        ESP_LOGE("HTTP", "Invalid value: %s", value);
+    } else {
+        ESP_LOGE(TAG, "Failed to get query string");
+    }
+
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid request");
+    return ESP_FAIL;
+}
+
 
 char on_resp[]="<!DOCTYPE html>"
 "<html>"
@@ -130,10 +216,24 @@ char on_resp[]="<!DOCTYPE html>"
         "<a href=\"/led5off\"><button class=\"button button2\">OFF</button></a>"
       "</p>"
     "</div>"
+    "<div class=\"card\">"
+    "<input type=\'range\' min=\'0\' max=\'255\' value=\'128\' id=\'slider\' oninput=\'updatePWM()\'>" 
+    "<p>Value: <span id=\'value\'>128</span></p>" 
+    "</div>"
   "</div>"
+  "<script>"
+    "function updatePWM() {" 
+    "var val = document.getElementById(\'slider\').value;" 
+    "document.getElementById(\'value\').innerText = val;" 
+    "var data = \"value=\" + encodeURIComponent(val) + \"&\";"
+    "var xhttp = new XMLHttpRequest();" 
+    "xhttp.open(\'GET\', \'/pwm?\' +data, true);" 
+    "xhttp.send();" 
+    "}" 
+"</script>"
 "</body>"
 "</html>";
-static const char *TAG = "espressif"; // TAG for debug
+
 int led_state1 = 0;
 int led_state2 = 0;
 int led_state3 = 0;
@@ -146,12 +246,28 @@ void led_blink_task(void *pvParameter) {
     int ON = 0;
     while (1) {  // Chạy vô hạn, nhưng có thể bị xóa
         ON = !ON;
-        gpio_set_level(LED_PIN1, ON);
+        if (ON==1){
+        set_pwm_duty(LED1_CHANNEL,128); // LED1 sáng 25%
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+    	set_pwm_duty(LED2_CHANNEL,128); // LED1 sáng 25%
+    	vTaskDelay(100 / portTICK_PERIOD_MS);
+    	set_pwm_duty(LED3_CHANNEL,128); // LED1 sáng 25%
+    	vTaskDelay(100 / portTICK_PERIOD_MS);
+    	} 
+    	else {
+		set_pwm_duty(LED1_CHANNEL,0); // LED1 sáng 25%
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+    	set_pwm_duty(LED2_CHANNEL,0); // LED1 sáng 25%
+    	vTaskDelay(100 / portTICK_PERIOD_MS);
+    	set_pwm_duty(LED3_CHANNEL,0); // LED1 sáng 25%
+    	vTaskDelay(100 / portTICK_PERIOD_MS);
+		}
+        /*gpio_set_level(LED_PIN1, ON);
         vTaskDelay(100 / portTICK_PERIOD_MS);
         gpio_set_level(LED_PIN2, ON);
         vTaskDelay(100 / portTICK_PERIOD_MS);
         gpio_set_level(LED_PIN3, ON);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);*/
     }
 }
 
@@ -240,67 +356,82 @@ esp_err_t get_req_handler(httpd_req_t *req)
     return send_web_page(req);
 }
 
+
+ 
+
 esp_err_t led1_on_handler(httpd_req_t *req)
 {
-    gpio_set_level(LED_PIN1, 1);
-    led_state1 = 1;
+    //gpio_set_level(LED_PIN1, 1);
+    set_pwm_duty(LED1_CHANNEL, LEDC_MAX_DUTY / 2); // LED1 sáng 25%
+    //led_state1 = 1;
     return send_web_page(req);
 }
 
 esp_err_t led1_off_handler(httpd_req_t *req)
 {
-    gpio_set_level(LED_PIN1, 0);
-    led_state1 = 0;
+    //gpio_set_level(LED_PIN1, 0);
+    set_pwm_duty(LED1_CHANNEL,0); // LED1 sáng 25%
+    //led_state1 = 0;
     return send_web_page(req);
 }
 
 esp_err_t led2_on_handler(httpd_req_t *req)
 {
-    gpio_set_level(LED_PIN2, 1);
-    led_state2 = 1;
+    //gpio_set_level(LED_PIN2, 1);
+    set_pwm_duty(LED2_CHANNEL, LEDC_MAX_DUTY / 2); // LED1 sáng 25%
+    //led_state2 = 1;
     return send_web_page(req);
 }
 
 esp_err_t led2_off_handler(httpd_req_t *req)
 {
-    gpio_set_level(LED_PIN2, 0);
-    led_state2 = 0;
+    //gpio_set_level(LED_PIN2, 0);
+    set_pwm_duty(LED2_CHANNEL,0); // LED1 sáng 25%
+    //led_state2 = 0;
     return send_web_page(req);
 }
 
 esp_err_t led3_on_handler(httpd_req_t *req)
 {
-    gpio_set_level(LED_PIN3, 1);
-    led_state3 = 1;
+    //gpio_set_level(LED_PIN3, 1);
+    set_pwm_duty(LED3_CHANNEL, LEDC_MAX_DUTY /2); // LED1 sáng 25%
+    //led_state3 = 1;
     return send_web_page(req);
 }
 
 esp_err_t led3_off_handler(httpd_req_t *req)
 {
-    gpio_set_level(LED_PIN3, 0);
-    led_state3 = 0;
+    //gpio_set_level(LED_PIN3, 0);
+    set_pwm_duty(LED3_CHANNEL,0); // LED1 sáng 25%
+    //led_state3 = 0;
     return send_web_page(req);
 }
 
 esp_err_t led4_on_handler(httpd_req_t *req)
 {
-	gpio_set_level(LED_PIN1, 1);
+	/*gpio_set_level(LED_PIN1, 1);
 	gpio_set_level(LED_PIN2, 1);
     gpio_set_level(LED_PIN3, 1);
     led_state1 = 1;
     led_state2 = 1;
-    led_state3 = 1;
+    led_state3 = 1;*/
+    set_pwm_duty(LED1_CHANNEL, LEDC_MAX_DUTY / 2); // LED1 sáng 25%
+    set_pwm_duty(LED2_CHANNEL, LEDC_MAX_DUTY / 2); // LED1 sáng 25%
+    set_pwm_duty(LED3_CHANNEL, LEDC_MAX_DUTY / 2); // LED1 sáng 25%
     return send_web_page(req);
 }
 
 esp_err_t led4_off_handler(httpd_req_t *req)
 {
-    gpio_set_level(LED_PIN1, 0);
+    /*gpio_set_level(LED_PIN1, 0);
     gpio_set_level(LED_PIN2, 0);
     gpio_set_level(LED_PIN3, 0);
     led_state1 = 0;
     led_state2 = 0;
-    led_state3 = 0;
+    led_state3 = 0;*/
+    set_pwm_duty(LED1_CHANNEL,0); // LED1 sáng 25%
+    set_pwm_duty(LED2_CHANNEL,0); // LED1 sáng 25%
+    set_pwm_duty(LED3_CHANNEL,0); // LED1 sáng 25%
     return send_web_page(req);
 }
 
@@ -317,15 +448,24 @@ esp_err_t led5_off_handler(httpd_req_t *req)
     if (led_blink_task_handle != NULL) {
         vTaskDelete(led_blink_task_handle);  // Xóa task
         led_blink_task_handle = NULL;
+        set_pwm_duty(LED1_CHANNEL,0); // LED1 sáng 25%
+    	set_pwm_duty(LED2_CHANNEL,0); // LED1 sáng 25%
+    	set_pwm_duty(LED3_CHANNEL,0); // LED1 sáng 25%
     }
-    gpio_set_level(LED_PIN1, 0);
+    /*gpio_set_level(LED_PIN1, 0);
     gpio_set_level(LED_PIN2, 0);
-    gpio_set_level(LED_PIN3, 0);
+    gpio_set_level(LED_PIN3, 0);*/
 
     return send_web_page(req);
     
     
 }
+httpd_uri_t uri_pwm = {
+    .uri = "/pwm",
+    .method = HTTP_GET,
+    .handler = pwm_handler,
+    .user_ctx = NULL
+};
 httpd_uri_t uri_get = {
     .uri = "/",
     .method = HTTP_GET,
@@ -413,6 +553,7 @@ httpd_handle_t setup_server(void)
         httpd_register_uri_handler(server, &uri5_on);
         httpd_register_uri_handler(server, &uri5_off);
         httpd_register_uri_handler(server, &uri_favicon);
+        httpd_register_uri_handler(server, &uri_pwm);
     }
 
     return server;
@@ -440,5 +581,8 @@ void app_main(void)
     led_state2 = 0;
     led_state3 = 0;
     ESP_LOGI(TAG, "LED Control Web Server is running ... ...\n");
+    pwm_init();
+  
+    
     setup_server();
 }
